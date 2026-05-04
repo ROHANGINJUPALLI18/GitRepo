@@ -7,6 +7,7 @@ Or from server directory: uvicorn src.main:app --reload
 import uvicorn
 from app import app
 from config import settings
+import base64
 
 
 def main():
