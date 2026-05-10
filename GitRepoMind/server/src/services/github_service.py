@@ -2,6 +2,7 @@ import os
 import requests
 import base64
 from dotenv import load_dotenv
+from typing import Dict
 
 
 class GitHubService:
@@ -15,6 +16,28 @@ class GitHubService:
         }
         self.owner = None
         self.repo_name = None
+
+    def _get_repo_info(self, branch="main") -> Dict:
+        """Build repo context dict for metadata tagging."""
+        return {
+            "owner": self.owner or "unknown",
+            "repo": self.repo_name or "unknown",
+            "branch": branch,
+        }
+
+    def _apply_index_filter(self, files):
+        """Apply hardcoded file-filter rules and split files into index/skip groups."""
+        from .analyze_repo import should_index_file
+
+        to_index = []
+        skipped = []
+        for file in files:
+            path = file.get("path", "") if isinstance(file, dict) else ""
+            if should_index_file(path):
+                to_index.append(file)
+            else:
+                skipped.append(file)
+        return to_index, skipped
 
     def get_repo_info(self, repo_url):
         try:
@@ -95,9 +118,18 @@ class GitHubService:
 
         # ── Step 2: fetch all files ──────────────────────────────────────
         print(f"\nFetching all files from '{owner}/{repo_name}' on branch '{branch}'...\n")
-        files = self.get_all_files(branch)
-        if not files:
+        all_files = self.get_all_files(branch)
+        if not all_files:
             print("No files found or failed to fetch.")
+            return
+
+        files, skipped_files = self._apply_index_filter(all_files)
+        print(f"Total files: {len(all_files)}")
+        print(f"Files to index: {len(files)} [OK]")
+        print(f"Files skipped: {len(skipped_files)} [SKIP]")
+
+        if not files:
+            print("No indexable files found.")
             return
 
         # ── Step 3: print file listing ───────────────────────────────────
@@ -105,8 +137,15 @@ class GitHubService:
         for file in files:
             print(f"   {file['path']}")
 
-        # ── Step 4: fetch each file's content ────────────────────────────
-        print("\n--- Fetching file contents ---\n")
+        # ── Step 4: fetch each file's content and chunk for embedding ─────
+        from .chunking_service import chunk_text, get_chunking_summary
+        from .metadata_tagger import MetadataTagger
+        
+        print("\n--- Fetching file contents, chunking, and tagging metadata ---\n")
+        all_chunks = {}
+        all_chunks_with_metadata = {}
+        entry_points = set()  # Collect entry points for metadata
+        
         for file in files:
             path = file["path"]
             print(f"\n{'=' * 60}")
@@ -114,21 +153,55 @@ class GitHubService:
             print('=' * 60)
             content = self.get_file_content(path, branch)
             if content:
-                print(content)
+                # Chunk the content for embedding
+                chunks = chunk_text(content, file_path=path)
+                all_chunks[path] = chunks
+                
+                # Tag chunks with metadata
+                repo_info = self._get_repo_info(branch)
+                tagged_chunks = MetadataTagger.tag_chunks(
+                    chunks, path, repo_info, entry_points
+                )
+                all_chunks_with_metadata[path] = tagged_chunks
+                
+                summary = get_chunking_summary(chunks)
+                print(f"Content preview (first 200 chars):\n{content[:200]}...")
+                print(f"\nChunking summary: {summary['total_chunks']} chunks, {summary['total_tokens']} total tokens")
+                
+                # Show sample metadata from first chunk
+                if tagged_chunks:
+                    sample_meta = tagged_chunks[0].get("metadata", {})
+                    print(f"\nMetadata sample: file_type={sample_meta.get('file_type')}, "
+                          f"language={sample_meta.get('language')}, "
+                          f"repo={sample_meta.get('repo')}")
+            else:
+                all_chunks[path] = []
+                all_chunks_with_metadata[path] = []
 
         # ── Step 5: run static analysis ──────────────────────────────────
-        self.analyze_git_repo(files)
+        self.analyze_git_repo(files, already_filtered=True, chunks=all_chunks_with_metadata)
 
-    def analyze_git_repo(self, files=None, branch="main"):
+    def analyze_git_repo(self, files=None, branch="main", already_filtered=False, chunks=None):
         """
         Runs static analysis on the fetched files.
         Accepts an already-fetched file list, or re-fetches if not provided.
+        `chunks` dict maps file paths to their chunked content (optional).
         """
         # Lazy import to avoid circular dependency issues
-        from analyze_repo import analyze_repository, to_json
+        from .analyze_repo import analyze_repository, to_json
 
         if files is None:
-            files = self.get_all_files(branch)
+            all_files = self.get_all_files(branch)
+            files, skipped_files = self._apply_index_filter(all_files)
+            print(f"Total files: {len(all_files)}")
+            print(f"Files to index: {len(files)} [OK]")
+            print(f"Files skipped: {len(skipped_files)} [SKIP]")
+        elif not already_filtered:
+            all_files = files
+            files, skipped_files = self._apply_index_filter(all_files)
+            print(f"Total files: {len(all_files)}")
+            print(f"Files to index: {len(files)} [OK]")
+            print(f"Files skipped: {len(skipped_files)} [SKIP]")
 
         if not files:
             print("No files to analyze.")

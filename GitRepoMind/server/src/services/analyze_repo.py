@@ -13,6 +13,53 @@ def _normalize_path(p: str) -> str:
     return p.replace("\\", "/").strip().strip("/")
 
 
+# ── Functionality: File Filter ───────────────────────────────────────────────
+
+INDEX_INCLUDE_EXTENSIONS: Set[str] = {
+    ".py", ".js", ".ts", ".java", ".go", ".rs", ".cpp",
+    ".md", ".txt", ".rst",
+    ".json", ".yaml", ".toml",
+}
+
+INDEX_SKIP_EXTENSIONS: Set[str] = {
+    ".png", ".jpg", ".gif", ".svg",
+    ".pyc", ".class", ".o",
+}
+
+INDEX_SKIP_PATH_SEGMENTS: Set[str] = {
+    "node_modules", ".git", "dist", "build",
+}
+
+INDEX_SKIP_FILENAMES: Set[str] = {
+    "package-lock.json",
+    "yarn.lock",
+}
+
+
+def should_index_file(path: str) -> bool:
+    """
+    Decide whether a file should be indexed using hardcoded include/skip rules.
+    """
+    np = _normalize_path(path)
+    if not np:
+        return False
+
+    lowered = np.lower()
+    parts = [part for part in lowered.split("/") if part]
+    if any(part in INDEX_SKIP_PATH_SEGMENTS for part in parts[:-1]):
+        return False
+
+    filename = os.path.basename(lowered)
+    if filename in INDEX_SKIP_FILENAMES or filename.endswith(".lock"):
+        return False
+
+    _, ext = os.path.splitext(filename)
+    if ext in INDEX_SKIP_EXTENSIONS:
+        return False
+
+    return ext in INDEX_INCLUDE_EXTENSIONS
+
+
 # ── Functionality 1: File Tree Scanner ───────────────────────────────────────
 
 def build_file_tree(paths: List[str]) -> Dict:
@@ -561,7 +608,17 @@ if __name__ == "__main__":
     if not raw_files:
         print("No files found.")
     else:
-        paths = [f["path"] for f in raw_files if f.get("path")]
+        all_paths = [f["path"] for f in raw_files if f.get("path")]
+        paths = [p for p in all_paths if should_index_file(p)]
+
+        print(f"Total files: {len(all_paths)}")
+        print(f"Files to index: {len(paths)} [OK]")
+        print(f"Files skipped: {len(all_paths) - len(paths)} [SKIP]")
+
+        if not paths:
+            print("No indexable files found.")
+            raise SystemExit(0)
+
         result = analyze_repository(paths)
 
         print("\n" + "=" * 60)
@@ -573,3 +630,6 @@ if __name__ == "__main__":
         print("        README OVERVIEW")
         print("=" * 60)
         print(result["readme_overview"])        
+        
+        
+    
