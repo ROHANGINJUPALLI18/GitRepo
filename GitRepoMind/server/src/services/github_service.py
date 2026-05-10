@@ -107,8 +107,8 @@ class GitHubService:
           1. Parse the URL
           2. Fetch all file paths
           3. Print file listing
-          4. Fetch and print each file's content
-          5. Run static analysis and print report
+                    4. Fetch, chunk, tag, and embed each file's content
+                    5. Run static analysis and print report
         """
         # ── Step 1: parse URL ────────────────────────────────────────────
         owner, repo_name = self.get_repo_info(repo_url)
@@ -137,14 +137,17 @@ class GitHubService:
         for file in files:
             print(f"   {file['path']}")
 
-        # ── Step 4: fetch each file's content and chunk for embedding ─────
+        # ── Step 4: fetch each file's content, chunk, tag, and embed ──────
         from .chunking_service import chunk_text, get_chunking_summary
+        from .embedding_service import EmbeddingService
         from .metadata_tagger import MetadataTagger
         
-        print("\n--- Fetching file contents, chunking, and tagging metadata ---\n")
+        print("\n--- Fetching file contents, chunking, tagging metadata, and generating embeddings ---\n")
         all_chunks = {}
         all_chunks_with_metadata = {}
+        all_chunks_with_embeddings = {}
         entry_points = set()  # Collect entry points for metadata
+        embedding_service = EmbeddingService()
         
         for file in files:
             path = file["path"]
@@ -163,6 +166,9 @@ class GitHubService:
                     chunks, path, repo_info, entry_points
                 )
                 all_chunks_with_metadata[path] = tagged_chunks
+
+                embedded_chunks = embedding_service.embed_chunks(tagged_chunks)
+                all_chunks_with_embeddings[path] = embedded_chunks
                 
                 summary = get_chunking_summary(chunks)
                 print(f"Content preview (first 200 chars):\n{content[:200]}...")
@@ -171,15 +177,22 @@ class GitHubService:
                 # Show sample metadata from first chunk
                 if tagged_chunks:
                     sample_meta = tagged_chunks[0].get("metadata", {})
+                    sample_embedding = embedded_chunks[0].get("embedding", []) if embedded_chunks else []
                     print(f"\nMetadata sample: file_type={sample_meta.get('file_type')}, "
                           f"language={sample_meta.get('language')}, "
                           f"repo={sample_meta.get('repo')}")
+                    print(f"Embedding sample: dim={len(sample_embedding)}")
             else:
                 all_chunks[path] = []
                 all_chunks_with_metadata[path] = []
+                all_chunks_with_embeddings[path] = []
 
         # ── Step 5: run static analysis ──────────────────────────────────
-        self.analyze_git_repo(files, already_filtered=True, chunks=all_chunks_with_metadata)
+        self.analyze_git_repo(
+            files,
+            already_filtered=True,
+            chunks=all_chunks_with_embeddings,
+        )
 
     def analyze_git_repo(self, files=None, branch="main", already_filtered=False, chunks=None):
         """

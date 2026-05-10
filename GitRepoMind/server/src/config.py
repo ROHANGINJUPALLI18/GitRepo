@@ -3,7 +3,6 @@ from pathlib import Path
 from functools import lru_cache
 from pydantic_settings import BaseSettings
 
-
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
@@ -20,13 +19,18 @@ class Settings(BaseSettings):
     # Database config
     database_url: str = "postgresql://postgres:password@localhost:5432/gitrepomind"
 
-    # Redis config
-    redis_url: str = "redis://localhost:6379/0"
+    # Celery config
+    celery_broker_url: str = "redis://localhost:6379/0"
+    celery_result_backend: str = "redis://localhost:6379/0"
 
     # OpenAI config
     openai_api_key: str = ""
-    openai_embedding_model: str = "text-embedding-3-small"
-    openai_chat_model: str = "gpt-4-turbo-preview"
+
+    # Local embedding config
+    embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_batch_size: int = 16
+    embedding_device: str = "cpu"
+    embedding_dimension: int = 384
 
     # Quadrant config
     quadrant_url: str = "http://localhost:6333"
@@ -51,6 +55,7 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "ignore"
 
     def __init__(self, **kwargs):
         """Initialize settings and create necessary directories."""
