@@ -32,9 +32,11 @@ class Settings(BaseSettings):
     embedding_device: str = "cpu"
     embedding_dimension: int = 384
 
-    # Quadrant config
+    # Qdrant config (vector database)
     quadrant_url: str = "http://localhost:6333"
     quadrant_api_key: str = ""
+    qdrant_collection_name: str = "gitrepomind_chunks"
+    qdrant_vector_dim: int = 384
 
     # GitHub config
     github_token: str = ""  # Optional, for private repos later

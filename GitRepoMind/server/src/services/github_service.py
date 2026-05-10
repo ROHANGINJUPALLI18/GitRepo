@@ -137,17 +137,19 @@ class GitHubService:
         for file in files:
             print(f"   {file['path']}")
 
-        # ── Step 4: fetch each file's content, chunk, tag, and embed ──────
+        # ── Step 4: fetch each file's content, chunk, tag, embed, and store ──
         from .chunking_service import chunk_text, get_chunking_summary
         from .embedding_service import EmbeddingService
         from .metadata_tagger import MetadataTagger
+        from .vector_store_service import QdrantVectorStore
         
-        print("\n--- Fetching file contents, chunking, tagging metadata, and generating embeddings ---\n")
+        print("\n--- Fetching file contents, chunking, tagging metadata, generating embeddings, and storing in Qdrant ---\n")
         all_chunks = {}
         all_chunks_with_metadata = {}
         all_chunks_with_embeddings = {}
         entry_points = set()  # Collect entry points for metadata
         embedding_service = EmbeddingService()
+        vector_store = QdrantVectorStore()
         
         for file in files:
             path = file["path"]
@@ -187,7 +189,18 @@ class GitHubService:
                 all_chunks_with_metadata[path] = []
                 all_chunks_with_embeddings[path] = []
 
-        # ── Step 5: run static analysis ──────────────────────────────────
+        # ── Step 5: store embeddings in Qdrant ───────────────────────────
+        repo_full_name = f"{self.owner}/{self.repo_name}"
+        try:
+            stored_count = vector_store.upsert_chunks(all_chunks_with_embeddings, repo_full_name)
+            print(f"\n--- Vector Storage ---")
+            print(f"Stored {stored_count} chunks in Qdrant collection '{vector_store.collection_name}'")
+            collection_info = vector_store.get_collection_info()
+            print(f"Collection info: {collection_info['points_count']} total points")
+        except Exception as e:
+            print(f"Warning: Failed to store chunks in Qdrant: {e}")
+
+        # ── Step 6: run static analysis ──────────────────────────────────
         self.analyze_git_repo(
             files,
             already_filtered=True,
