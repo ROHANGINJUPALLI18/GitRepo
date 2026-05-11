@@ -71,6 +71,4 @@ class EmbeddingService:
             file_path: self.embed_chunks(chunks)
             for file_path, chunks in chunks_by_path.items()
         }
-import dotenv 
-from typing import List, Dict, Optional
 

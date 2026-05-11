@@ -1,7 +1,8 @@
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from config import settings
+from .config import settings
+from .api.search import router as search_router
 
 
 # Configure logging
@@ -37,11 +38,8 @@ def create_app() -> FastAPI:
             "version": settings.app_version,
         }
 
-    # Include API routers (will be added later)
-    # from api import repos, search, chat
-    # app.include_router(repos.router)
-    # app.include_router(search.router)
-    # app.include_router(chat.router)
+    # Include API routers
+    app.include_router(search_router)
 
     logger.info(f"{settings.app_name} app created successfully")
     return app

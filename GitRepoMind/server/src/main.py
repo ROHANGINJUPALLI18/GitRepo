@@ -5,15 +5,14 @@ Or from server directory: uvicorn src.main:app --reload
 """
 
 import uvicorn
-from app import app
-from config import settings
-import base64
+from .app import app
+from .config import settings
 
 
 def main():
     """Run the FastAPI application."""
     uvicorn.run(
-        "app:app",
+        "src.app:app",
         host=settings.host,
         port=settings.port,
         reload=settings.debug,
