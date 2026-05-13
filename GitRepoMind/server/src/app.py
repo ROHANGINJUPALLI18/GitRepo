@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .api.search import router as search_router
+from .api.chat import router as chat_router
 
 
 # Configure logging
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
 
     # Include API routers
     app.include_router(search_router)
+    app.include_router(chat_router)
 
     logger.info(f"{settings.app_name} app created successfully")
     return app

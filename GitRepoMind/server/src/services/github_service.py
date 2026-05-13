@@ -11,9 +11,10 @@ class GitHubService:
         load_dotenv()
         self.github_token = os.getenv('GITHUB_TOKEN')
         self.headers = {
-            'Authorization': f'token {self.github_token}',
             'Accept': 'application/vnd.github.v3+json'
         }
+        if self.github_token:
+            self.headers['Authorization'] = f'token {self.github_token}'
         self.owner = None
         self.repo_name = None
 

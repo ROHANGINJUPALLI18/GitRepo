@@ -1,3 +1,4 @@
+import http
 import os
 from pathlib import Path
 from functools import lru_cache
@@ -47,6 +48,18 @@ class Settings(BaseSettings):
     chunk_size: int = 1024
     chunk_overlap: int = 128
     search_top_k: int = 5
+
+    # Ollama config
+    ollama_host: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5-coder:7b"
+    ollama_temperature: float = 0.2
+    ollama_top_p: float = 0.9
+    ollama_timeout: int = 60
+
+    # RAG config
+    rag_top_k: int = 5
+    rag_max_context_chars: int = 12000
+    rag_chunk_separator: str = "\n---\n"
 
     # Paths
     base_path: Path = Path(__file__).parent.parent.parent
