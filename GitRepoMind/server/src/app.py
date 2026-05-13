@@ -2,8 +2,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
-from .api.search import router as search_router
-from .api.chat import router as chat_router
+from .api import analyze, chat, repos, health
 
 
 # Configure logging
@@ -15,15 +14,16 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
 
     app = FastAPI(
-        title=settings.app_name,
-        version=settings.app_version,
+        title="GitRepoMind API",
+        version="1.0.0",
+        description="AI-powered GitHub Repository Analyzer & RAG Chat",
         debug=settings.debug,
     )
 
-    # Add CORS middleware
+    # Add CORS middleware - allow all origins for frontend on localhost:5173
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Update for production
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -31,20 +31,26 @@ def create_app() -> FastAPI:
 
     # Health check endpoint
     @app.get("/health")
-    async def health_check():
-        """Check API and dependency health."""
+    async def root_health():
+        """Root health check endpoint."""
         return {
             "status": "healthy",
             "app": settings.app_name,
-            "version": settings.app_version,
+            "version": "1.0.0",
         }
 
     # Include API routers
-    app.include_router(search_router)
-    app.include_router(chat_router)
+    app.include_router(analyze.router)
+    app.include_router(chat.router)
+    app.include_router(repos.router)
+    app.include_router(health.router)
 
-    logger.info(f"{settings.app_name} app created successfully")
+    logger.info("GitRepoMind API app created successfully")
     return app
+
+
+# Create the FastAPI application instance
+app = create_app()
 
 
 # Create app instance

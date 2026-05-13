@@ -122,7 +122,8 @@ class MetadataTagger:
         file_type = MetadataTagger._detect_file_type(file_path)
         folder = MetadataTagger._extract_folder(file_path)
         is_entry_point = MetadataTagger._is_entry_point(file_path, entry_points)
-        repo_full_name = f"{repo_info.get('owner', 'unknown')}/{repo_info.get('repo', 'unknown')}"
+        # Prefer a stable repo identifier (repo_id) if provided by the caller.
+        repo_full_name = repo_info.get("repo_id") or f"{repo_info.get('owner', 'unknown')}/{repo_info.get('repo', 'unknown')}"
 
         # Attach metadata to each chunk
         tagged_chunks = []

@@ -284,6 +284,37 @@ def get_chunking_summary(chunks: List[Dict]) -> Dict:
     }
 
 
+# ── Chunking Service Class ────────────────────────────────────────────────────
+
+class ChunkingService:
+    """Service class for chunking multiple files."""
+
+    def chunk_files(self, files_with_content: List[Dict]) -> List[Dict]:
+        """
+        Chunk multiple files into text chunks.
+
+        Args:
+            files_with_content: List of dicts with 'path' and 'content' keys
+
+        Returns:
+            List of chunk dicts with metadata (path, chunk_index, start_line, end_line, text, tokens)
+        """
+        all_chunks = []
+        
+        for file_data in files_with_content:
+            file_path = file_data.get("path", "")
+            content = file_data.get("content", "")
+            
+            if not content:
+                continue
+            
+            # Chunk this file
+            file_chunks = chunk_text(content, file_path)
+            all_chunks.extend(file_chunks)
+        
+        return all_chunks
+
+
 # ── Entry point (for testing) ────────────────────────────────────────────────
 
 if __name__ == "__main__":

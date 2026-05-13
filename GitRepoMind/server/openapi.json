@@ -1,0 +1,831 @@
+﻿{
+    "openapi":  "3.1.0",
+    "info":  {
+                 "title":  "GitRepoMind API",
+                 "description":  "AI-powered GitHub Repository Analyzer \u0026 RAG Chat",
+                 "version":  "1.0.0"
+             },
+    "paths":  {
+                  "/health":  {
+                                  "get":  {
+                                              "summary":  "Root Health",
+                                              "description":  "Root health check endpoint.",
+                                              "operationId":  "root_health_health_get",
+                                              "responses":  {
+                                                                "200":  {
+                                                                            "description":  "Successful Response",
+                                                                            "content":  "@{application/json=}"
+                                                                        }
+                                                            }
+                                          }
+                              },
+                  "/api/analyze-repo":  {
+                                            "post":  {
+                                                         "tags":  [
+                                                                      "analyze"
+                                                                  ],
+                                                         "summary":  "Analyze Repository",
+                                                         "description":  "Analyze a GitHub repository and prepare it for RAG queries.\n\nThis endpoint performs the following steps:\n1. Parses the GitHub repository URL\n2. Checks cache for existing analysis\n3. Fetches all files from the repository\n4. Analyzes static repository structure\n5. Chunks files into semantic units\n6. Tags chunks with metadata\n7. Generates embeddings\n8. Stores vectors in Qdrant\n9. Caches the analysis result\n\nArgs:\n    request: AnalyzeRequest with repo_url and optional branch\n\nReturns:\n    AnalyzeResponse with success status, repo_id, and analysis details\n\nRaises:\n    HTTPException: For invalid URLs, GitHub errors, or processing failures",
+                                                         "operationId":  "analyze_repository_api_analyze_repo_post",
+                                                         "requestBody":  {
+                                                                             "content":  {
+                                                                                             "application/json":  "@{schema=}"
+                                                                                         },
+                                                                             "required":  true
+                                                                         },
+                                                         "responses":  {
+                                                                           "201":  {
+                                                                                       "description":  "Successful Response",
+                                                                                       "content":  "@{application/json=}"
+                                                                                   },
+                                                                           "422":  {
+                                                                                       "description":  "Validation Error",
+                                                                                       "content":  "@{application/json=}"
+                                                                                   }
+                                                                       }
+                                                     }
+                                        },
+                  "/api/reindex":  {
+                                       "post":  {
+                                                    "tags":  [
+                                                                 "analyze"
+                                                             ],
+                                                    "summary":  "Reindex Repository",
+                                                    "description":  "Re-analyze a GitHub repository, discarding cached data.\n\nThis endpoint forces a fresh analysis of a repository:\n1. Deletes existing vectors from Qdrant\n2. Clears cached analysis\n3. Runs the full analysis pipeline\n\nArgs:\n    request: ReindexRequest with repo_url and optional branch\n\nReturns:\n    Fresh AnalyzeResponse with new analysis data\n\nRaises:\n    HTTPException: For invalid URLs or processing failures",
+                                                    "operationId":  "reindex_repository_api_reindex_post",
+                                                    "requestBody":  {
+                                                                        "content":  {
+                                                                                        "application/json":  "@{schema=}"
+                                                                                    },
+                                                                        "required":  true
+                                                                    },
+                                                    "responses":  {
+                                                                      "200":  {
+                                                                                  "description":  "Successful Response",
+                                                                                  "content":  "@{application/json=}"
+                                                                              },
+                                                                      "422":  {
+                                                                                  "description":  "Validation Error",
+                                                                                  "content":  "@{application/json=}"
+                                                                              }
+                                                                  }
+                                                }
+                                   },
+                  "/api/analysis/{repo_id}":  {
+                                                  "get":  {
+                                                              "tags":  [
+                                                                           "analyze"
+                                                                       ],
+                                                              "summary":  "Get Analysis",
+                                                              "description":  "Retrieve cached analysis for a repository.\n\nArgs:\n    repo_id: Repository ID returned from analyze-repo endpoint\n\nReturns:\n    Cached AnalyzeResponse\n\nRaises:\n    HTTPException: If repository not found",
+                                                              "operationId":  "get_analysis_api_analysis__repo_id__get",
+                                                              "parameters":  [
+                                                                                 {
+                                                                                     "name":  "repo_id",
+                                                                                     "in":  "path",
+                                                                                     "required":  true,
+                                                                                     "schema":  "@{type=string; title=Repo Id}"
+                                                                                 }
+                                                                             ],
+                                                              "responses":  {
+                                                                                "200":  {
+                                                                                            "description":  "Successful Response",
+                                                                                            "content":  "@{application/json=}"
+                                                                                        },
+                                                                                "422":  {
+                                                                                            "description":  "Validation Error",
+                                                                                            "content":  "@{application/json=}"
+                                                                                        }
+                                                                            }
+                                                          }
+                                              },
+                  "/api/chat":  {
+                                    "post":  {
+                                                 "tags":  [
+                                                              "chat"
+                                                          ],
+                                                 "summary":  "Chat",
+                                                 "description":  "Chat with the RAG-powered repository assistant.\n\nRetrieves relevant code chunks from the indexed repository,\ngenerates a RAG prompt, and uses an LLM to provide a conversational answer.\n\nArgs:\n    request: Chat request with repo_id, query, and optional session_id\n\nReturns:\n    Chat response with answer and sources\n\nRaises:\n    HTTPException: If repo not found or chat generation fails",
+                                                 "operationId":  "chat_api_chat_post",
+                                                 "requestBody":  {
+                                                                     "content":  {
+                                                                                     "application/json":  "@{schema=}"
+                                                                                 },
+                                                                     "required":  true
+                                                                 },
+                                                 "responses":  {
+                                                                   "200":  {
+                                                                               "description":  "Successful Response",
+                                                                               "content":  "@{application/json=}"
+                                                                           },
+                                                                   "422":  {
+                                                                               "description":  "Validation Error",
+                                                                               "content":  "@{application/json=}"
+                                                                           }
+                                                               }
+                                             }
+                                },
+                  "/api/chat/history/{session_id}":  {
+                                                         "get":  {
+                                                                     "tags":  [
+                                                                                  "chat"
+                                                                              ],
+                                                                     "summary":  "Get Chat History",
+                                                                     "description":  "Retrieve conversation history for a session.\n\nArgs:\n    session_id: Conversation session ID\n\nReturns:\n    HistoryResponse with list of messages",
+                                                                     "operationId":  "get_chat_history_api_chat_history__session_id__get",
+                                                                     "parameters":  [
+                                                                                        {
+                                                                                            "name":  "session_id",
+                                                                                            "in":  "path",
+                                                                                            "required":  true,
+                                                                                            "schema":  "@{type=string; title=Session Id}"
+                                                                                        }
+                                                                                    ],
+                                                                     "responses":  {
+                                                                                       "200":  {
+                                                                                                   "description":  "Successful Response",
+                                                                                                   "content":  "@{application/json=}"
+                                                                                               },
+                                                                                       "422":  {
+                                                                                                   "description":  "Validation Error",
+                                                                                                   "content":  "@{application/json=}"
+                                                                                               }
+                                                                                   }
+                                                                 },
+                                                         "delete":  {
+                                                                        "tags":  [
+                                                                                     "chat"
+                                                                                 ],
+                                                                        "summary":  "Delete Chat History",
+                                                                        "description":  "Delete conversation history for a session.\n\nArgs:\n    session_id: Conversation session ID\n\nReturns:\n    Empty response on success\n\nRaises:\n    HTTPException: If operation fails",
+                                                                        "operationId":  "delete_chat_history_api_chat_history__session_id__delete",
+                                                                        "parameters":  [
+                                                                                           {
+                                                                                               "name":  "session_id",
+                                                                                               "in":  "path",
+                                                                                               "required":  true,
+                                                                                               "schema":  "@{type=string; title=Session Id}"
+                                                                                           }
+                                                                                       ],
+                                                                        "responses":  {
+                                                                                          "204":  {
+                                                                                                      "description":  "Successful Response"
+                                                                                                  },
+                                                                                          "422":  {
+                                                                                                      "description":  "Validation Error",
+                                                                                                      "content":  "@{application/json=}"
+                                                                                                  }
+                                                                                      }
+                                                                    }
+                                                     },
+                  "/api/repos":  {
+                                     "get":  {
+                                                 "tags":  [
+                                                              "repos"
+                                                          ],
+                                                 "summary":  "List Repositories",
+                                                 "description":  "List all indexed repositories.\n\nReturns all repositories that have been analyzed and cached.\n\nReturns:\n    RepoListResponse with list of all indexed repositories\n\nRaises:\n    HTTPException: If operation fails",
+                                                 "operationId":  "list_repositories_api_repos_get",
+                                                 "responses":  {
+                                                                   "200":  {
+                                                                               "description":  "Successful Response",
+                                                                               "content":  "@{application/json=}"
+                                                                           }
+                                                               }
+                                             }
+                                 },
+                  "/api/repos/{repo_id}/stats":  {
+                                                     "get":  {
+                                                                 "tags":  [
+                                                                              "repos"
+                                                                          ],
+                                                                 "summary":  "Get Repository Stats",
+                                                                 "description":  "Get statistics for an indexed repository.\n\nCombines cached analysis data with vector store statistics\nto provide comprehensive repository information.\n\nArgs:\n    repo_id: Repository ID returned from analyze-repo endpoint\n\nReturns:\n    RepoStatsResponse with detailed repository statistics\n\nRaises:\n    HTTPException: If repository not found or operation fails",
+                                                                 "operationId":  "get_repository_stats_api_repos__repo_id__stats_get",
+                                                                 "parameters":  [
+                                                                                    {
+                                                                                        "name":  "repo_id",
+                                                                                        "in":  "path",
+                                                                                        "required":  true,
+                                                                                        "schema":  "@{type=string; title=Repo Id}"
+                                                                                    }
+                                                                                ],
+                                                                 "responses":  {
+                                                                                   "200":  {
+                                                                                               "description":  "Successful Response",
+                                                                                               "content":  "@{application/json=}"
+                                                                                           },
+                                                                                   "422":  {
+                                                                                               "description":  "Validation Error",
+                                                                                               "content":  "@{application/json=}"
+                                                                                           }
+                                                                               }
+                                                             }
+                                                 },
+                  "/api/repos/{repo_id}":  {
+                                               "delete":  {
+                                                              "tags":  [
+                                                                           "repos"
+                                                                       ],
+                                                              "summary":  "Delete Repository",
+                                                              "description":  "Delete an indexed repository from cache and vector store.\n\nRemoves all associated data:\n- Vectors from Qdrant\n- Cached analysis results\n- Conversation history (if exists)\n\nArgs:\n    repo_id: Repository ID returned from analyze-repo endpoint\n\nReturns:\n    Empty response on success\n\nRaises:\n    HTTPException: If repository not found or operation fails",
+                                                              "operationId":  "delete_repository_api_repos__repo_id__delete",
+                                                              "parameters":  [
+                                                                                 {
+                                                                                     "name":  "repo_id",
+                                                                                     "in":  "path",
+                                                                                     "required":  true,
+                                                                                     "schema":  "@{type=string; title=Repo Id}"
+                                                                                 }
+                                                                             ],
+                                                              "responses":  {
+                                                                                "204":  {
+                                                                                            "description":  "Successful Response"
+                                                                                        },
+                                                                                "422":  {
+                                                                                            "description":  "Validation Error",
+                                                                                            "content":  "@{application/json=}"
+                                                                                        }
+                                                                            }
+                                                          }
+                                           },
+                  "/api/health":  {
+                                      "get":  {
+                                                  "tags":  [
+                                                               "health"
+                                                           ],
+                                                  "summary":  "Health Check",
+                                                  "description":  "Check the overall health of the API and dependencies.\n\nTests:\n- API server availability\n- Qdrant vector database connectivity\n\nReturns:\n    HealthResponse with overall status and component statuses\n\nRaises:\n    HTTPException: If critical dependencies are unavailable",
+                                                  "operationId":  "health_check_api_health_get",
+                                                  "responses":  {
+                                                                    "200":  {
+                                                                                "description":  "Successful Response",
+                                                                                "content":  "@{application/json=}"
+                                                                            }
+                                                                }
+                                              }
+                                  },
+                  "/api/health/qdrant":  {
+                                             "get":  {
+                                                         "tags":  [
+                                                                      "health"
+                                                                  ],
+                                                         "summary":  "Qdrant Health",
+                                                         "description":  "Check Qdrant vector database status and statistics.\n\nReturns connection status, number of collections, and server URL.\n\nReturns:\n    QdrantStatsResponse with connection details\n\nRaises:\n    HTTPException: If check fails",
+                                                         "operationId":  "qdrant_health_api_health_qdrant_get",
+                                                         "responses":  {
+                                                                           "200":  {
+                                                                                       "description":  "Successful Response",
+                                                                                       "content":  "@{application/json=}"
+                                                                                   }
+                                                                       }
+                                                     }
+                                         }
+              },
+    "components":  {
+                       "schemas":  {
+                                       "AnalyzeRequest":  {
+                                                              "properties":  {
+                                                                                 "repo_url":  {
+                                                                                                  "type":  "string",
+                                                                                                  "maxLength":  500,
+                                                                                                  "minLength":  1,
+                                                                                                  "title":  "Repo Url",
+                                                                                                  "description":  "GitHub repository URL (https://github.com/owner/repo)"
+                                                                                              },
+                                                                                 "branch":  {
+                                                                                                "type":  "string",
+                                                                                                "maxLength":  255,
+                                                                                                "minLength":  1,
+                                                                                                "title":  "Branch",
+                                                                                                "description":  "Repository branch to analyze",
+                                                                                                "default":  "main"
+                                                                                            },
+                                                                                 "force_reindex":  {
+                                                                                                       "type":  "boolean",
+                                                                                                       "title":  "Force Reindex",
+                                                                                                       "description":  "Force re-analysis of repository even if cached",
+                                                                                                       "default":  false
+                                                                                                   }
+                                                                             },
+                                                              "type":  "object",
+                                                              "required":  [
+                                                                               "repo_url"
+                                                                           ],
+                                                              "title":  "AnalyzeRequest",
+                                                              "description":  "Request payload for repository analysis.",
+                                                              "example":  {
+                                                                              "branch":  "main",
+                                                                              "force_reindex":  false,
+                                                                              "repo_url":  "https://github.com/microsoft/vscode"
+                                                                          }
+                                                          },
+                                       "AnalyzeResponse":  {
+                                                               "properties":  {
+                                                                                  "success":  {
+                                                                                                  "type":  "boolean",
+                                                                                                  "title":  "Success",
+                                                                                                  "description":  "Whether analysis succeeded"
+                                                                                              },
+                                                                                  "repo_id":  {
+                                                                                                  "type":  "string",
+                                                                                                  "title":  "Repo Id",
+                                                                                                  "description":  "Unique identifier for the analyzed repository"
+                                                                                              },
+                                                                                  "repo_name":  {
+                                                                                                    "type":  "string",
+                                                                                                    "title":  "Repo Name",
+                                                                                                    "description":  "Repository name (owner/repo)"
+                                                                                                },
+                                                                                  "total_files":  {
+                                                                                                      "type":  "integer",
+                                                                                                      "title":  "Total Files",
+                                                                                                      "description":  "Total files in repository"
+                                                                                                  },
+                                                                                  "indexed_files":  {
+                                                                                                        "type":  "integer",
+                                                                                                        "title":  "Indexed Files",
+                                                                                                        "description":  "Number of files indexed"
+                                                                                                    },
+                                                                                  "language_info":  {
+                                                                                                        "additionalProperties":  true,
+                                                                                                        "type":  "object",
+                                                                                                        "title":  "Language Info",
+                                                                                                        "description":  "Programming language distribution"
+                                                                                                    },
+                                                                                  "entry_points":  {
+                                                                                                       "items":  "@{type=string}",
+                                                                                                       "type":  "array",
+                                                                                                       "title":  "Entry Points",
+                                                                                                       "description":  "Main entry point files"
+                                                                                                   },
+                                                                                  "architecture":  {
+                                                                                                       "additionalProperties":  true,
+                                                                                                       "type":  "object",
+                                                                                                       "title":  "Architecture",
+                                                                                                       "description":  "Repository architecture analysis"
+                                                                                                   },
+                                                                                  "readme_overview":  {
+                                                                                                          "type":  "string",
+                                                                                                          "title":  "Readme Overview",
+                                                                                                          "description":  "README summary if available",
+                                                                                                          "default":  ""
+                                                                                                      },
+                                                                                  "indexed_at":  {
+                                                                                                     "type":  "string",
+                                                                                                     "title":  "Indexed At",
+                                                                                                     "description":  "Timestamp when analysis was completed"
+                                                                                                 }
+                                                                              },
+                                                               "type":  "object",
+                                                               "required":  [
+                                                                                "success",
+                                                                                "repo_id",
+                                                                                "repo_name",
+                                                                                "total_files",
+                                                                                "indexed_files"
+                                                                            ],
+                                                               "title":  "AnalyzeResponse",
+                                                               "description":  "Response payload for repository analysis.",
+                                                               "example":  {
+                                                                               "architecture":  {
+                                                                                                    "layers":  "api services utils"
+                                                                                                },
+                                                                               "entry_points":  [
+                                                                                                    "main.py",
+                                                                                                    "index.js"
+                                                                                                ],
+                                                                               "indexed_at":  "2026-05-13T12:34:56.000000",
+                                                                               "indexed_files":  120,
+                                                                               "language_info":  {
+                                                                                                     "JSON":  25,
+                                                                                                     "JavaScript":  30,
+                                                                                                     "Python":  45
+                                                                                                 },
+                                                                               "readme_overview":  "This is a project about...",
+                                                                               "repo_id":  "owner_repo",
+                                                                               "repo_name":  "owner/repo",
+                                                                               "success":  true,
+                                                                               "total_files":  150
+                                                                           }
+                                                           },
+                                       "ChatMessage":  {
+                                                           "properties":  {
+                                                                              "role":  {
+                                                                                           "type":  "string",
+                                                                                           "title":  "Role",
+                                                                                           "description":  "Message role: \u0027user\u0027 or \u0027assistant\u0027"
+                                                                                       },
+                                                                              "content":  {
+                                                                                              "type":  "string",
+                                                                                              "title":  "Content",
+                                                                                              "description":  "Message content"
+                                                                                          },
+                                                                              "sources":  {
+                                                                                              "items":  "@{type=string}",
+                                                                                              "type":  "array",
+                                                                                              "title":  "Sources",
+                                                                                              "description":  "Source code snippets (only for assistant messages)"
+                                                                                          },
+                                                                              "timestamp":  {
+                                                                                                "type":  "string",
+                                                                                                "title":  "Timestamp",
+                                                                                                "description":  "Message timestamp"
+                                                                                            }
+                                                                          },
+                                                           "type":  "object",
+                                                           "required":  [
+                                                                            "role",
+                                                                            "content"
+                                                                        ],
+                                                           "title":  "ChatMessage",
+                                                           "description":  "A message in conversation history."
+                                                       },
+                                       "ChatRequest":  {
+                                                           "properties":  {
+                                                                              "repo_id":  {
+                                                                                              "type":  "string",
+                                                                                              "maxLength":  255,
+                                                                                              "minLength":  1,
+                                                                                              "title":  "Repo Id",
+                                                                                              "description":  "Repository ID (returned from analyze endpoint)"
+                                                                                          },
+                                                                              "query":  {
+                                                                                            "type":  "string",
+                                                                                            "maxLength":  5000,
+                                                                                            "minLength":  1,
+                                                                                            "title":  "Query",
+                                                                                            "description":  "Natural language question about the codebase"
+                                                                                        },
+                                                                              "session_id":  {
+                                                                                                 "type":  "string",
+                                                                                                 "maxLength":  255,
+                                                                                                 "minLength":  1,
+                                                                                                 "title":  "Session Id",
+                                                                                                 "description":  "Conversation session ID for maintaining history",
+                                                                                                 "default":  "default"
+                                                                                             }
+                                                                          },
+                                                           "type":  "object",
+                                                           "required":  [
+                                                                            "repo_id",
+                                                                            "query"
+                                                                        ],
+                                                           "title":  "ChatRequest",
+                                                           "description":  "Request payload for RAG chat.",
+                                                           "example":  {
+                                                                           "query":  "How does the authentication module work?",
+                                                                           "repo_id":  "owner_repo",
+                                                                           "session_id":  "user_12345"
+                                                                       }
+                                                       },
+                                       "ChatResponse":  {
+                                                            "properties":  {
+                                                                               "success":  {
+                                                                                               "type":  "boolean",
+                                                                                               "title":  "Success",
+                                                                                               "description":  "Whether request succeeded"
+                                                                                           },
+                                                                               "answer":  {
+                                                                                              "type":  "string",
+                                                                                              "title":  "Answer",
+                                                                                              "description":  "AI-generated answer to the query"
+                                                                                          },
+                                                                               "sources":  {
+                                                                                               "items":  "@{type=string}",
+                                                                                               "type":  "array",
+                                                                                               "title":  "Sources",
+                                                                                               "description":  "Relevant source code snippets"
+                                                                                           },
+                                                                               "session_id":  {
+                                                                                                  "type":  "string",
+                                                                                                  "title":  "Session Id",
+                                                                                                  "description":  "Conversation session ID"
+                                                                                              }
+                                                                           },
+                                                            "type":  "object",
+                                                            "required":  [
+                                                                             "success",
+                                                                             "answer",
+                                                                             "session_id"
+                                                                         ],
+                                                            "title":  "ChatResponse",
+                                                            "description":  "Response payload for RAG chat.",
+                                                            "example":  {
+                                                                            "answer":  "The authentication is handled by...",
+                                                                            "session_id":  "user_12345",
+                                                                            "sources":  [
+                                                                                            "src/auth/login.py:10-45",
+                                                                                            "src/auth/tokens.py:1-30"
+                                                                                        ],
+                                                                            "success":  true
+                                                                        }
+                                                        },
+                                       "HTTPValidationError":  {
+                                                                   "properties":  {
+                                                                                      "detail":  {
+                                                                                                     "items":  "@{$ref=#/components/schemas/ValidationError}",
+                                                                                                     "type":  "array",
+                                                                                                     "title":  "Detail"
+                                                                                                 }
+                                                                                  },
+                                                                   "type":  "object",
+                                                                   "title":  "HTTPValidationError"
+                                                               },
+                                       "HealthResponse":  {
+                                                              "properties":  {
+                                                                                 "status":  {
+                                                                                                "type":  "string",
+                                                                                                "title":  "Status",
+                                                                                                "description":  "Overall status (\u0027ok\u0027 or \u0027degraded\u0027)"
+                                                                                            },
+                                                                                 "qdrant":  {
+                                                                                                "type":  "string",
+                                                                                                "title":  "Qdrant",
+                                                                                                "description":  "Qdrant connection status (\u0027connected\u0027 or \u0027disconnected\u0027)"
+                                                                                            },
+                                                                                 "timestamp":  {
+                                                                                                   "type":  "string",
+                                                                                                   "title":  "Timestamp",
+                                                                                                   "description":  "Health check timestamp"
+                                                                                               }
+                                                                             },
+                                                              "type":  "object",
+                                                              "required":  [
+                                                                               "status",
+                                                                               "qdrant"
+                                                                           ],
+                                                              "title":  "HealthResponse",
+                                                              "description":  "Response payload for health check.",
+                                                              "example":  {
+                                                                              "qdrant":  "connected",
+                                                                              "status":  "ok",
+                                                                              "timestamp":  "2026-05-13T12:34:56.000000"
+                                                                          }
+                                                          },
+                                       "HistoryResponse":  {
+                                                               "properties":  {
+                                                                                  "session_id":  {
+                                                                                                     "type":  "string",
+                                                                                                     "title":  "Session Id",
+                                                                                                     "description":  "Conversation session ID"
+                                                                                                 },
+                                                                                  "messages":  {
+                                                                                                   "items":  "@{$ref=#/components/schemas/ChatMessage}",
+                                                                                                   "type":  "array",
+                                                                                                   "title":  "Messages",
+                                                                                                   "description":  "List of messages in conversation"
+                                                                                               }
+                                                                              },
+                                                               "type":  "object",
+                                                               "required":  [
+                                                                                "session_id",
+                                                                                "messages"
+                                                                            ],
+                                                               "title":  "HistoryResponse",
+                                                               "description":  "Response payload for conversation history.",
+                                                               "example":  {
+                                                                               "messages":  [
+                                                                                                "@{content=How does auth work?; role=user; sources=System.Object[]; timestamp=2026-05-13T12:00:00.000000}",
+                                                                                                "@{content=The auth system...; role=assistant; sources=System.Object[]; timestamp=2026-05-13T12:00:05.000000}"
+                                                                                            ],
+                                                                               "session_id":  "user_12345"
+                                                                           }
+                                                           },
+                                       "QdrantStatsResponse":  {
+                                                                   "properties":  {
+                                                                                      "connected":  {
+                                                                                                        "type":  "boolean",
+                                                                                                        "title":  "Connected",
+                                                                                                        "description":  "Whether connected to Qdrant"
+                                                                                                    },
+                                                                                      "collections":  {
+                                                                                                          "type":  "integer",
+                                                                                                          "title":  "Collections",
+                                                                                                          "description":  "Number of collections"
+                                                                                                      },
+                                                                                      "url":  {
+                                                                                                  "type":  "string",
+                                                                                                  "title":  "Url",
+                                                                                                  "description":  "Qdrant server URL"
+                                                                                              }
+                                                                                  },
+                                                                   "type":  "object",
+                                                                   "required":  [
+                                                                                    "connected",
+                                                                                    "collections",
+                                                                                    "url"
+                                                                                ],
+                                                                   "title":  "QdrantStatsResponse",
+                                                                   "description":  "Response payload for Qdrant statistics.",
+                                                                   "example":  {
+                                                                                   "collections":  3,
+                                                                                   "connected":  true,
+                                                                                   "url":  "http://localhost:6333"
+                                                                               }
+                                                               },
+                                       "ReindexRequest":  {
+                                                              "properties":  {
+                                                                                 "repo_url":  {
+                                                                                                  "type":  "string",
+                                                                                                  "maxLength":  500,
+                                                                                                  "minLength":  1,
+                                                                                                  "title":  "Repo Url",
+                                                                                                  "description":  "GitHub repository URL (https://github.com/owner/repo)"
+                                                                                              },
+                                                                                 "branch":  {
+                                                                                                "type":  "string",
+                                                                                                "maxLength":  255,
+                                                                                                "minLength":  1,
+                                                                                                "title":  "Branch",
+                                                                                                "description":  "Repository branch to reindex",
+                                                                                                "default":  "main"
+                                                                                            }
+                                                                             },
+                                                              "type":  "object",
+                                                              "required":  [
+                                                                               "repo_url"
+                                                                           ],
+                                                              "title":  "ReindexRequest",
+                                                              "description":  "Request payload for repository reindexing.",
+                                                              "example":  {
+                                                                              "branch":  "main",
+                                                                              "repo_url":  "https://github.com/microsoft/vscode"
+                                                                          }
+                                                          },
+                                       "RepoListResponse":  {
+                                                                "properties":  {
+                                                                                   "total":  {
+                                                                                                 "type":  "integer",
+                                                                                                 "title":  "Total",
+                                                                                                 "description":  "Total number of repositories indexed"
+                                                                                             },
+                                                                                   "repos":  {
+                                                                                                 "items":  "@{$ref=#/components/schemas/RepoSummary}",
+                                                                                                 "type":  "array",
+                                                                                                 "title":  "Repos",
+                                                                                                 "description":  "List of indexed repositories"
+                                                                                             }
+                                                                               },
+                                                                "type":  "object",
+                                                                "required":  [
+                                                                                 "total",
+                                                                                 "repos"
+                                                                             ],
+                                                                "title":  "RepoListResponse",
+                                                                "description":  "Response payload for repository list.",
+                                                                "example":  {
+                                                                                "repos":  [
+                                                                                              "@{indexed_at=2026-05-13T12:00:00.000000; primary_language=Python; repo_id=owner_repo1; repo_name=owner/repo1; total_files=150}",
+                                                                                              "@{indexed_at=2026-05-13T11:00:00.000000; primary_language=JavaScript; repo_id=owner_repo2; repo_name=owner/repo2; total_files=200}"
+                                                                                          ],
+                                                                                "total":  2
+                                                                            }
+                                                            },
+                                       "RepoStatsResponse":  {
+                                                                 "properties":  {
+                                                                                    "repo_id":  {
+                                                                                                    "type":  "string",
+                                                                                                    "title":  "Repo Id",
+                                                                                                    "description":  "Repository ID"
+                                                                                                },
+                                                                                    "repo_name":  {
+                                                                                                      "type":  "string",
+                                                                                                      "title":  "Repo Name",
+                                                                                                      "description":  "Repository name (owner/repo)"
+                                                                                                  },
+                                                                                    "total_files":  {
+                                                                                                        "type":  "integer",
+                                                                                                        "title":  "Total Files",
+                                                                                                        "description":  "Total files in repository"
+                                                                                                    },
+                                                                                    "indexed_files":  {
+                                                                                                          "type":  "integer",
+                                                                                                          "title":  "Indexed Files",
+                                                                                                          "description":  "Number of indexed files"
+                                                                                                      },
+                                                                                    "total_chunks":  {
+                                                                                                         "type":  "integer",
+                                                                                                         "title":  "Total Chunks",
+                                                                                                         "description":  "Total chunks in vector store"
+                                                                                                     },
+                                                                                    "languages":  {
+                                                                                                      "additionalProperties":  "@{type=integer}",
+                                                                                                      "type":  "object",
+                                                                                                      "title":  "Languages",
+                                                                                                      "description":  "Language distribution"
+                                                                                                  },
+                                                                                    "frameworks":  {
+                                                                                                       "items":  "@{type=string}",
+                                                                                                       "type":  "array",
+                                                                                                       "title":  "Frameworks",
+                                                                                                       "description":  "Detected frameworks"
+                                                                                                   },
+                                                                                    "indexed_at":  {
+                                                                                                       "type":  "string",
+                                                                                                       "title":  "Indexed At",
+                                                                                                       "description":  "When it was indexed"
+                                                                                                   }
+                                                                                },
+                                                                 "type":  "object",
+                                                                 "required":  [
+                                                                                  "repo_id",
+                                                                                  "repo_name",
+                                                                                  "total_files",
+                                                                                  "indexed_files",
+                                                                                  "total_chunks",
+                                                                                  "indexed_at"
+                                                                              ],
+                                                                 "title":  "RepoStatsResponse",
+                                                                 "description":  "Response payload for repository statistics.",
+                                                                 "example":  {
+                                                                                 "frameworks":  [
+                                                                                                    "FastAPI",
+                                                                                                    "React"
+                                                                                                ],
+                                                                                 "indexed_at":  "2026-05-13T12:00:00.000000",
+                                                                                 "indexed_files":  120,
+                                                                                 "languages":  {
+                                                                                                   "JSON":  10,
+                                                                                                   "JavaScript":  30,
+                                                                                                   "Python":  60
+                                                                                               },
+                                                                                 "repo_id":  "owner_repo",
+                                                                                 "repo_name":  "owner/repo",
+                                                                                 "total_chunks":  5000,
+                                                                                 "total_files":  150
+                                                                             }
+                                                             },
+                                       "RepoSummary":  {
+                                                           "properties":  {
+                                                                              "repo_id":  {
+                                                                                              "type":  "string",
+                                                                                              "title":  "Repo Id",
+                                                                                              "description":  "Repository ID"
+                                                                                          },
+                                                                              "repo_name":  {
+                                                                                                "type":  "string",
+                                                                                                "title":  "Repo Name",
+                                                                                                "description":  "Repository name (owner/repo)"
+                                                                                            },
+                                                                              "indexed_at":  {
+                                                                                                 "type":  "string",
+                                                                                                 "title":  "Indexed At",
+                                                                                                 "description":  "When it was indexed"
+                                                                                             },
+                                                                              "total_files":  {
+                                                                                                  "type":  "integer",
+                                                                                                  "title":  "Total Files",
+                                                                                                  "description":  "Total files"
+                                                                                              },
+                                                                              "primary_language":  {
+                                                                                                       "type":  "string",
+                                                                                                       "title":  "Primary Language",
+                                                                                                       "description":  "Primary language",
+                                                                                                       "default":  "Unknown"
+                                                                                                   }
+                                                                          },
+                                                           "type":  "object",
+                                                           "required":  [
+                                                                            "repo_id",
+                                                                            "repo_name",
+                                                                            "indexed_at",
+                                                                            "total_files"
+                                                                        ],
+                                                           "title":  "RepoSummary",
+                                                           "description":  "Summary of an indexed repository."
+                                                       },
+                                       "ValidationError":  {
+                                                               "properties":  {
+                                                                                  "loc":  {
+                                                                                              "items":  "@{anyOf=System.Object[]}",
+                                                                                              "type":  "array",
+                                                                                              "title":  "Location"
+                                                                                          },
+                                                                                  "msg":  {
+                                                                                              "type":  "string",
+                                                                                              "title":  "Message"
+                                                                                          },
+                                                                                  "type":  {
+                                                                                               "type":  "string",
+                                                                                               "title":  "Error Type"
+                                                                                           },
+                                                                                  "input":  {
+                                                                                                "title":  "Input"
+                                                                                            },
+                                                                                  "ctx":  {
+                                                                                              "type":  "object",
+                                                                                              "title":  "Context"
+                                                                                          }
+                                                                              },
+                                                               "type":  "object",
+                                                               "required":  [
+                                                                                "loc",
+                                                                                "msg",
+                                                                                "type"
+                                                                            ],
+                                                               "title":  "ValidationError"
+                                                           }
+                                   }
+                   }
+}
