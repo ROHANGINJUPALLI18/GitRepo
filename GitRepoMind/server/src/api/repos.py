@@ -124,8 +124,8 @@ async def get_repository_stats(repo_id: str) -> RepoStatsResponse:
         )
 
 
-@router.delete("/{repo_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_repository(repo_id: str) -> None:
+@router.delete("/{repo_id}", status_code=status.HTTP_200_OK)
+async def delete_repository(repo_id: str) -> dict:
     """
     Delete an indexed repository from cache and vector store.
 
@@ -138,7 +138,7 @@ async def delete_repository(repo_id: str) -> None:
         repo_id: Repository ID returned from analyze-repo endpoint
 
     Returns:
-        Empty response on success
+        Success response
 
     Raises:
         HTTPException: If repository not found or operation fails
@@ -170,6 +170,7 @@ async def delete_repository(repo_id: str) -> None:
         # Delete from cache
         RepoCache.delete(repo_id)
         logger.info(f"Deleted repository {repo_id}")
+        return {"success": True, "message": f"Deleted repository {repo_id}"}
 
     except HTTPException:
         raise
