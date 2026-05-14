@@ -2,6 +2,8 @@ import http
 import os
 from pathlib import Path
 from functools import lru_cache
+
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -34,8 +36,8 @@ class Settings(BaseSettings):
     embedding_dimension: int = 384
 
     # Qdrant config (vector database)
-    quadrant_url: str = "http://localhost:6333"
-    quadrant_api_key: str = ""
+    quadrant_url: str = Field(default="http://localhost:6333", validation_alias="QDRANT_URL")
+    quadrant_api_key: str = Field(default="", validation_alias="QDRANT_API_KEY")
     qdrant_collection_name: str = "gitrepomind_chunks"
     qdrant_vector_dim: int = 384
 

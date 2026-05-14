@@ -258,6 +258,32 @@ Use these checks before production deployment:
 - Enable structured logging and health monitoring.
 - Set restart policies for backend, frontend, Qdrant, and Ollama services.
 - Keep `.env` values out of source control.
+
+## Deploying To Vercel And Render
+
+The frontend is set up for Vercel and the backend is set up for Render.
+
+### Frontend on Vercel
+
+- Set the Vercel project root to `client/`.
+- Keep `client/vercel.json` in place so React Router routes fall back to `index.html`.
+- Set `VITE_API_BASE_URL` in Vercel to the public Render backend URL, for example `https://gitrepomind-backend.onrender.com`.
+
+### Backend on Render
+
+- Use the root `render.yaml` blueprint or create a Render Web Service from the `server/` folder.
+- Build command: `pip install -r requirements.txt`
+- Start command: `uvicorn src.main:app --host 0.0.0.0 --port $PORT`
+- Required environment variables:
+  - `QDRANT_URL` for the hosted Qdrant endpoint.
+  - `QDRANT_API_KEY` if your Qdrant instance requires auth.
+  - `OLLAMA_HOST` for the LLM endpoint.
+  - `OLLAMA_MODEL` if you want to override the default model.
+  - `OPENAI_API_KEY` if you use OpenAI-backed components.
+
+### Important Runtime Note
+
+Render will not provide Qdrant or Ollama for you. The backend expects both services to be reachable from the deployed app, so point `QDRANT_URL` and `OLLAMA_HOST` at hosted instances before treating the deployment as production-ready.
 - Use a real persistent store if you need chat history across server restarts.
 
 ## Useful Commands
