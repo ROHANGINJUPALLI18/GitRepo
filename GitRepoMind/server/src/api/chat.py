@@ -167,8 +167,8 @@ async def get_chat_history(session_id: str) -> HistoryResponse:
         )
 
 
-@router.delete("/history/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_chat_history(session_id: str) -> None:
+@router.delete("/history/{session_id}", status_code=status.HTTP_200_OK)
+async def delete_chat_history(session_id: str) -> dict:
     """
     Delete conversation history for a session.
 
@@ -176,7 +176,7 @@ async def delete_chat_history(session_id: str) -> None:
         session_id: Conversation session ID
 
     Returns:
-        Empty response on success
+        Success response
 
     Raises:
         HTTPException: If operation fails
@@ -184,6 +184,7 @@ async def delete_chat_history(session_id: str) -> None:
     try:
         ConversationStore.clear_history(session_id)
         logger.info(f"Cleared history for session {session_id}")
+        return {"success": True, "message": f"Cleared history for session {session_id}"}
     except Exception as e:
         logger.error(f"Error clearing history: {str(e)}", exc_info=True)
         raise HTTPException(
